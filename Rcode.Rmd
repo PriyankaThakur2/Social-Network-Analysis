@@ -1,0 +1,98 @@
+---
+title: "Rcode"
+author: "Priyanka Thakur"
+date: "2/9/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tools)
+pkgs <- available.packages()
+str(pkgs)
+head(package.dependencies(pkgs), 2)
+```
+
+
+```{r}
+library(plyr)
+edges <- ldply(c('Depends', 'Imports', 'Suggests'), function(depLevel) {
+  deps <- package.dependencies(pkgs, depLevel = depLevel)
+  ldply(names(deps), function(pkg)
+    if (!identical(deps[[pkg]], NA))
+      data.frame(
+        src   = pkg,
+        dep   = deps[[pkg]][, 1],
+        label = depLevel,
+        stringsAsFactors = FALSE))
+})
+str(edges)
+
+nrow(edges) / (nrow(pkgs) * (nrow(pkgs) - 1))
+```
+```{r}
+head(sort(table(edges$dep), decreasing = TRUE))
+
+edges <- edges[edges$dep != 'R', ]
+```
+
+```{r}
+library(igraph)
+g <- graph.data.frame(edges)
+summary(g)
+
+```
+
+```{r}
+graph.density(g)
+head(sort(degree(g), decreasing = TRUE))
+```
+
+```{r}
+head(sort(degree(g), decreasing = TRUE))
+head(sort(closeness(g)))
+head(sort(betweenness(g), decreasing = TRUE))
+
+```
+
+```{r}
+edges <- edges[edges$label != 'Suggests', ]
+deptree <- edges$dep[edges$src == 'igraph']
+while (!all(edges$dep[edges$src %in% deptree] %in% deptree))
+  deptree <- union(deptree, edges$dep[edges$src %in% deptree])
+
+
+```
+```{r}
+V(g)$label.color <- 'orange'
+V(g)$label.color[V(g)$name == 'igraph'] <- 'darkred'
+V(g)$label.color[V(g)$name %in% edges$dep[edges$src == 'igraph']] <- 'orangered'
+
+
+```
+
+
+```{r}
+library(visNetwork)
+nodes <- get.data.frame(g, 'vertices')
+names(nodes) <- c('id', 'color')
+```
+
+
+```{r}
+edges <- get.data.frame(g)
+visNetwork(nodes, edges)
+```
+
+
+```{r}
+
+library(miniCRAN)
+pkgs <- pkgAvail()
+pkgDep('igraph', availPkgs = pkgs, suggests = FALSE, includeBasePkgs = TRUE)
+plot(makeDepGraph('igraph', pkgs, suggests = FALSE, includeBasePkgs = TRUE))
+```
+
